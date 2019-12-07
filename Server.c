@@ -29,7 +29,7 @@ int channel_id[256] = {0}; // ID=0 Available, 1 = Not available/subbed
 
 pid_t childpid;
 char inbox[1000][254];
-int read_count[256]={0};
+int read_count[256] = {0};
 volatile int client_id, client_counter;
 
 //--------------------------------------Queue--------------------------------------------------------------
@@ -106,7 +106,7 @@ void enqueue(Queue *Q, char *element)
 //------------------------------------Channel ID------------------------------------------------------------
 typedef struct
 {
-	int index; 
+	int index;
 	int status; //Subscribe status
 	Queue *Q;
 } CHANNEL_ID;
@@ -116,13 +116,13 @@ CHANNEL_ID channels[CHANNEL_MAX];
 
 //------------------------------------End of Channel ID-------------------------------------------------------
 //------------------------------------Client ID-------------------------------------------------------------
-typedef struct 
+typedef struct
 {
 	int ID;
 	int total;
 	int status;
 	int subChannel[CHANNEL_MAX];
-}CLIENT_ID;
+} CLIENT_ID;
 
 // Function to create client
 CLIENT_ID *createClient()
@@ -173,29 +173,27 @@ void subscribe(int sockfd, CLIENT_ID *client)
 	// read the message from client and copy it in buffer
 	read(sockfd, &tmp, sizeof(tmp));
 	// print buffer which contains the client contents
-	
 
 	input_id = (int)tmp;
 	bzero(&tmp, sizeof(tmp));
 
+	//Check if the channel range is between 0 to 255
 	if (input_id >= 0 && input_id < 256)
 	{
-
+		//To check if channel requested from client has been subscribed or not
+		//Default unsubscribed channel will be 0
 		if (client->subChannel[input_id] == 0)
 		{
-			
 			bzero(&tmp, sizeof(tmp));
 			tmp = 0;
 			write(sockfd, &tmp, sizeof(tmp));
 			client->subChannel[input_id] = 1;
-			
 		}
 		else
 		{
 			bzero(&tmp, sizeof(tmp));
 			tmp = 1; //Channel already subscribe
 			write(sockfd, &tmp, sizeof(tmp));
-			
 		}
 	}
 	else
@@ -203,7 +201,6 @@ void subscribe(int sockfd, CLIENT_ID *client)
 		bzero(&tmp, sizeof(tmp));
 		tmp = 2; //Error range
 		write(sockfd, &tmp, sizeof(tmp));
-		
 	}
 }
 
@@ -223,26 +220,25 @@ void unsubscribe(int sockfd, CLIENT_ID *client)
 
 	input_id = (int)tmp;
 	bzero(&tmp, sizeof(tmp));
-	
 
+	//To check if channel requested from client has been unsubscribed or not
+	//Unsubscribed channel will not be 0
 	if (input_id >= 0 && input_id < 256)
 	{
 
 		if (client->subChannel[input_id] != 0)
 		{
-			
+
 			bzero(&tmp, sizeof(tmp));
 			tmp = 0;
 			write(sockfd, &tmp, sizeof(tmp));
 			client->subChannel[input_id] = 0;
-			
 		}
 		else
 		{
 			bzero(&tmp, sizeof(tmp));
 			tmp = 1;
 			write(sockfd, &tmp, sizeof(tmp));
-		
 		}
 	}
 	else
@@ -250,7 +246,6 @@ void unsubscribe(int sockfd, CLIENT_ID *client)
 		bzero(&tmp, sizeof(tmp));
 		tmp = 2;
 		write(sockfd, &tmp, sizeof(tmp));
-	
 	}
 }
 
@@ -320,9 +315,9 @@ void livefeed_all(int new_fd, CLIENT_ID *client)
 	int sub_channel[CHANNEL_MAX] = {0};
 	char **messages = malloc(sizeof(char *) * 50);
 	// for each sub channel get all the unread message
-	for (int i= 0; i < CHANNEL_MAX; i++)
+	for (int i = 0; i < CHANNEL_MAX; i++)
 	{
-		if(client->subChannel[i] == 1)
+		if (client->subChannel[i] == 1)
 		{
 			sub_channel[i] = 1;
 			for (int j = 0; j < channels[i].Q->size; j++)
@@ -340,105 +335,63 @@ void livefeed_all(int new_fd, CLIENT_ID *client)
 	free(messages);
 }
 
-
 // Gets the <channel id> and prints the next unread messages sent to that <channel id>
-void Next(int sockfd, CLIENT_ID *client){
+void Next(int sockfd, CLIENT_ID *client)
+{
 
 	int request_id = 0;
 	int32_t tmp;
 	char message[MAX];
-	
+
 	//Reads the channel ID requested from client
 	read(sockfd, &tmp, sizeof(tmp));
-	
+
 	//Get message from the channel_id
 	request_id = (int)tmp;
 
+	if (request_id > 0 && request_id < 256)
+	{
+		//Pass the message to client
+		if (client->subChannel[request_id] == 1)
+		{
+			tmp = 1;
+			write(sockfd, &tmp, sizeof(tmp));
 
-if (request_id > 0 && request_id < 256)
-{
-	//Pass the message to client
-	if (client->subChannel[request_id] == 1){
-	tmp = 1;
-	write(sockfd, &tmp, sizeof(tmp));
+			strcpy(message, front(channels[request_id].Q));
+			write(sockfd, message, sizeof(message));
 
-	strcpy(message, front(channels[request_id].Q));
-	write(sockfd, message, sizeof(message));
+			//To remove read messages
+			dequeue(channels[(request_id)].Q);
+			read_count[request_id]++;
+		}
 
-
-	//To remove read messages
-	dequeue(channels[(request_id)].Q);
-	read_count[request_id] ++;
-
+		else
+		{
+			tmp = 0;
+			write(sockfd, &tmp, sizeof(tmp));
+		}
 	}
 
 	else
 	{
-		tmp = 0;
+		tmp = 2;
 		write(sockfd, &tmp, sizeof(tmp));
 	}
-}
-
-else{
-	tmp = 2;
-	write(sockfd, &tmp, sizeof(tmp));
-}
-
 
 	// -----------------------------------
-	
 }
-
 
 //  Prints all the UNREAD Messages from ALL channels and waits for the next one
-void NextLive(int sockfd, CLIENT_ID *client){
+void NextLive(int sockfd, CLIENT_ID *client)
+{
 
-char message[MAX];
-int count=0;
-//int count2=0;
-int32_t tmp;
+	char message[MAX];
+	int count = 0;
+	//int count2=0;
+	int32_t tmp;
 
-for (int i=0; i<MAX; i++){
-	if (client->subChannel[i] == 1)
+	for (int i = 0; i < MAX; i++)
 	{
-		count++;
-	}
-}
-
-tmp = count;
-
-	//Sends the count to client get the loop count
-write(sockfd, &tmp, sizeof(tmp));
-
-
-// For loop to get all channels
-for (int i=0; i<MAX; i++){
-
-	if (client->subChannel[i] == 1)
-	{
-		strcpy(message, front(channels[i].Q));
-		//Pass channel id
-		tmp = i;
-		write(sockfd, &tmp, sizeof(tmp));
-		//Pass message
-		strcpy(message, front(channels[i].Q));
-		write(sockfd, message, sizeof(message));
-		dequeue(channels[i].Q);
-
-	}
-
-}
-
-	
-}
-
-void channel(int sockfd, CLIENT_ID *client){
-
-int count=0;
-int32_t tmp;
-
-
-for (int i=0; i<MAX; i++){
 		if (client->subChannel[i] == 1)
 		{
 			count++;
@@ -450,31 +403,62 @@ for (int i=0; i<MAX; i++){
 	//Sends the count to client get the loop count
 	write(sockfd, &tmp, sizeof(tmp));
 
-for (int i=0; i<MAX; i++){
-	if (client->subChannel[i] == 1)
+	// For loop to get all channels
+	for (int i = 0; i < MAX; i++)
 	{
 
-		tmp = i;
-		write(sockfd, &tmp, sizeof(tmp));
+		if (client->subChannel[i] == 1)
+		{
+			strcpy(message, front(channels[i].Q));
+			//Pass channel id
+			tmp = i;
+			write(sockfd, &tmp, sizeof(tmp));
+			//Pass message
+			strcpy(message, front(channels[i].Q));
+			write(sockfd, message, sizeof(message));
+			dequeue(channels[i].Q);
+		}
+	}
+}
 
-		tmp = read_count[i]+channels[i].Q->size;
-		write(sockfd, &tmp, sizeof(tmp));
-		
-		tmp = channels[i].Q->size;
-		write(sockfd, &tmp, sizeof(tmp));
+void channel(int sockfd, CLIENT_ID *client)
+{
 
-		tmp = read_count[i];
-		write(sockfd, &tmp, sizeof(tmp));
+	int count = 0;
+	int32_t tmp;
 
-
+	for (int i = 0; i < MAX; i++)
+	{
+		if (client->subChannel[i] == 1)
+		{
+			count++;
+		}
 	}
 
+	tmp = count;
+
+	//Sends the count to client get the loop count
+	write(sockfd, &tmp, sizeof(tmp));
+
+	for (int i = 0; i < MAX; i++)
+	{
+		if (client->subChannel[i] == 1)
+		{
+
+			tmp = i;
+			write(sockfd, &tmp, sizeof(tmp));
+
+			tmp = read_count[i] + channels[i].Q->size;
+			write(sockfd, &tmp, sizeof(tmp));
+
+			tmp = channels[i].Q->size;
+			write(sockfd, &tmp, sizeof(tmp));
+
+			tmp = read_count[i];
+			write(sockfd, &tmp, sizeof(tmp));
+		}
+	}
 }
-
-
-}
-
-
 
 void loop_listen(int new_fd)
 {
@@ -492,7 +476,7 @@ void loop_listen(int new_fd)
 		}
 		printf("server: got connection from %s:%d\n",
 			   inet_ntoa(their_addr.sin_addr), ntohs(their_addr.sin_port));
-			   
+
 		CLIENT_ID *client = createClient();
 		int tmp = htonl(client->ID);
 		send(new_fd, &tmp, sizeof(tmp), 0);
@@ -508,14 +492,14 @@ void loop_listen(int new_fd)
 				{
 					printf("SUB process\n");
 					subscribe(new_fd, client);
-					bzero(buff, sizeof(buff));					
+					bzero(buff, sizeof(buff));
 				}
 
 				if ((strncmp(buff, "UNSUB", 5)) == 0)
 				{
 					printf("UNSUB process\n");
 					unsubscribe(new_fd, client);
-					bzero(buff, sizeof(buff));					
+					bzero(buff, sizeof(buff));
 				}
 
 				// SEND command
@@ -527,7 +511,7 @@ void loop_listen(int new_fd)
 				}
 
 				/* LIVEFEED <channelid> */
-				if (((strncmp(buff, "LIVEFEED", 8)) == 0) && (strncmp(&buff[9], "\0", 1) != 0) && (strncmp(&buff[10], "\0", 1)!=0) && (strncmp(&buff[11], "0", 1) !=0))
+				if (((strncmp(buff, "LIVEFEED", 8)) == 0) && (strncmp(&buff[9], "\0", 1) != 0) && (strncmp(&buff[10], "\0", 1) != 0) && (strncmp(&buff[11], "0", 1) != 0))
 				{
 					printf("LIVEFEED <channelid> process\n");
 					char *channel = (char *)malloc(3);
@@ -538,35 +522,32 @@ void loop_listen(int new_fd)
 				}
 
 				/* LIVEFEED */
-				if (((strncmp(buff, "LIVEFEED", 8)) == 0) && (strncmp(&buff[9], "\0", 1) == 0) && (strncmp(&buff[10], "\0", 1)==0) && (strncmp(&buff[11], "\0", 1) ==0))
-				{
-					printf("LIVEFEED process\n");
-					livefeed_all(new_fd, client);
-					bzero(buff, sizeof(buff));
-				}
+				// if (((strncmp(buff, "LIVEFEED", 8)) == 0) && (strncmp(&buff[9], "\0", 1) == 0) && (strncmp(&buff[10], "\0", 1) == 0) && (strncmp(&buff[11], "\0", 1) == 0))
+				// {
+				// 	printf("LIVEFEED process\n");
+				// 	livefeed_all(new_fd, client);
+				// 	bzero(buff, sizeof(buff));
+				// }
 
-				if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1)!=0)&& (strncmp(&buff[6], "\0", 1)!=0) && (strncmp(&buff[7], "\0", 1) !=0)
-)
+				if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1) != 0) && (strncmp(&buff[6], "\0", 1) != 0) && (strncmp(&buff[7], "\0", 1) != 0))
 				{
 					printf("NEXT process\n");
 					Next(new_fd, client);
 					bzero(buff, sizeof(buff));
 				}
-				if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1)==0)&& (strncmp(&buff[6], "\0", 1)==0) && (strncmp(&buff[7], "\0", 1) ==0)
-)
+				if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1) == 0) && (strncmp(&buff[6], "\0", 1) == 0) && (strncmp(&buff[7], "\0", 1) == 0))
 				{
 					printf("NXT LIVE process\n");
 					NextLive(new_fd, client);
-					bzero(buff, sizeof(buff));					
+					bzero(buff, sizeof(buff));
 				}
 
 				if ((strncmp(buff, "CHANNEL", 7)) == 0)
 				{
 					printf("CHANNEL LIVE process\n");
 					channel(new_fd, client);
-					bzero(buff, sizeof(buff));					
+					bzero(buff, sizeof(buff));
 				}
-				
 
 				/* BYE */
 				if ((strncmp(buff, "BYE", 3)) == 0)

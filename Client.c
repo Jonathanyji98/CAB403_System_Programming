@@ -10,17 +10,16 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-
 #define PORT 12345 /* the port client will be connecting to */
 #define MAX 1000
 #define MAXDATASIZE 100 /* max number of bytes we can get at once */
-int input;
+
 volatile sig_atomic_t stop;
 int sockfd, numbytes, port;
 int tmp, n;
+int input;
 struct hostent *he;
-struct sockaddr_in their_addr; 
-
+struct sockaddr_in their_addr;
 
 void send_message(int sockfd, char *channel, char message[]);
 void subscribe(int new_fd, char *channel);
@@ -31,7 +30,6 @@ void NextLive(int sockfd);
 void livefeed(int sockfd, int channel);
 void shutdown_client(int signum);
 void livefeed_all(int sockfd);
-
 
 void loop_listen(int new_fd)
 {
@@ -47,7 +45,7 @@ void loop_listen(int new_fd)
 		while ((buff[n++] = getchar()) != '\n')
 			;
 		write(new_fd, buff, sizeof(buff));
-		
+
 		if ((strncmp(buff, "SUB", 3)) == 0)
 		{
 			printf("SUB process\n");
@@ -96,20 +94,17 @@ void loop_listen(int new_fd)
 		}
 
 		/* LIVEFEED */
-		if ((strncmp(buff, "LIVEFEED", 8) == 0) && (strncmp(&buff[9], "\0", 1) == 0) && (strncmp(&buff[10], "\0", 1) == 0) && (strncmp(&buff[11], "\0", 1) == 0))
-		{
-			char *channel = (char *)malloc(3);
-			strncpy(channel, buff + 9, 3);
-			// Handling the message
-			livefeed_all(new_fd);
-			bzero(buff, sizeof(buff));
-			free(channel);
-		}
+		// if ((strncmp(buff, "LIVEFEED", 8) == 0) && (strncmp(&buff[9], "\0", 1) == 0) && (strncmp(&buff[10], "\0", 1) == 0) && (strncmp(&buff[11], "\0", 1) == 0))
+		// {
+		// 	char *channel = (char *)malloc(3);
+		// 	strncpy(channel, buff + 9, 3);
+		// 	// Handling the message
+		// 	livefeed_all(new_fd);
+		// 	bzero(buff, sizeof(buff));
+		// 	free(channel);
+		// }
 
-
-
-		if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1)!=0)&& (strncmp(&buff[6], "\0", 1)!=0) && (strncmp(&buff[7], "\0", 1) !=0)
-)
+		if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1) != 0) && (strncmp(&buff[6], "\0", 1) != 0) && (strncmp(&buff[7], "\0", 1) != 0))
 		{
 			char *channel = (char *)malloc(3);
 			strncpy(channel, buff + 5, 3);
@@ -117,8 +112,7 @@ void loop_listen(int new_fd)
 			Next(new_fd, channel);
 		}
 
-		if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1)==0)&& (strncmp(&buff[6], "\0", 1)==0) && (strncmp(&buff[7], "\0", 1) ==0)
-)
+		if ((strncmp(buff, "NEXT", 4) == 0) && (strncmp(&buff[5], "\0", 1) == 0) && (strncmp(&buff[6], "\0", 1) == 0) && (strncmp(&buff[7], "\0", 1) == 0))
 		{
 			printf("NXT LIVE process\n");
 			NextLive(new_fd);
@@ -130,7 +124,6 @@ void loop_listen(int new_fd)
 			channel(new_fd);
 		}
 
-
 		if ((strncmp(buff, "BYE", 3)) == 0)
 		{
 			printf("Client: Exiting...\n");
@@ -139,7 +132,6 @@ void loop_listen(int new_fd)
 		}
 	}
 }
-
 
 void exit_loop(int signum)
 {
@@ -154,7 +146,6 @@ void shutdown_client(int sig)
 	close(sockfd);
 	exit(0);
 }
-
 
 void livefeed(int sockfd, int channel)
 {
@@ -204,7 +195,7 @@ void livefeed_all(int sockfd)
 {
 	int sub_channel[255] = {0};
 	char **messages = malloc(sizeof(char *) * 50);
-	int counter =0;
+	int counter = 0;
 	for (int i = 0; i < 2; i++)
 	{
 		read(sockfd, sub_channel, sizeof(sub_channel));
@@ -231,7 +222,7 @@ void livefeed_all(int sockfd)
 			{
 				counter++;
 				printf("Channel %d\n", i);
-				for (int j =0; j < sizeof(messages); j++)
+				for (int j = 0; j < sizeof(messages); j++)
 				{
 					printf("%d: %c", i, *messages[j]);
 				}
@@ -239,8 +230,6 @@ void livefeed_all(int sockfd)
 		}
 	}
 }
-
-
 
 void send_message(int sockfd, char *channel, char message[])
 {
@@ -264,11 +253,13 @@ void send_message(int sockfd, char *channel, char message[])
 	}
 }
 
+
+// Subscribe function
 void subscribe(int sockfd, char *channel)
 {
 	int32_t tmp;
 	int status;
-	int input;
+	int input; //Requested channel input
 
 	tmp = atoi(channel);
 	input = atoi(channel);
@@ -279,6 +270,11 @@ void subscribe(int sockfd, char *channel)
 	read(sockfd, &tmp, sizeof(tmp));
 	status = (int)tmp;
 
+	//Status to check if channel is subscribed or not 
+	//If status passed from server is 
+	//0: This channel input has just been newly subscribed
+	//1: Channel has already subscribed
+	//2: Invalid channel range
 	if (status == 0)
 	{
 		printf("Subscribed to channel %d\n", input);
@@ -296,12 +292,13 @@ void subscribe(int sockfd, char *channel)
 	}
 }
 
+// Unsubscribe function
 void unsubscribe(int sockfd, char *channel)
 {
 
 	int32_t tmp;
 	int status;
-	int input;
+	int input; //Requested channel input
 
 	tmp = atoi(channel);
 	input = atoi(channel);
@@ -311,6 +308,13 @@ void unsubscribe(int sockfd, char *channel)
 
 	read(sockfd, &tmp, sizeof(tmp));
 	status = (int)tmp;
+
+
+	//Status to check if channel is unsubscribed or not 
+	//If status passed from server is 
+	//0: This channel input has just been newly unsubscribed
+	//1: Channel has already been unsubscribed or not subscribed
+	//2: Invalid channel range
 
 	if (status == 0)
 	{
@@ -329,84 +333,90 @@ void unsubscribe(int sockfd, char *channel)
 	}
 }
 
-
+// Next function with channel arguement
 void Next(int sockfd, char *channel)
 {
 
 	int32_t tmp;
 	char message[MAX];
-	int status=0;
+	int status = 0;
 	int channel_input;
-	
+
 	tmp = atoi(channel);
 	channel_input = atoi(channel);
-// Check if channel is subscribed
+	// Check if channel is subscribed
 	write(sockfd, &tmp, sizeof(tmp));
 	read(sockfd, &tmp, sizeof(tmp));
 	status = (int)tmp;
 
-if (status == 1){
-	write(sockfd, &tmp, sizeof(tmp));
-	read(sockfd, message, sizeof(message));
-	printf("%d:%s\n", channel_input, message);
+	//Status to check if the channel input requested has been subscribed or not
+	// If this channel is subscribed, excecute the NEXT function
+	// Else, print the error message
+	if (status == 1)
+	{
+		write(sockfd, &tmp, sizeof(tmp));
+		read(sockfd, message, sizeof(message));
+		printf("%d:%s\n", channel_input, message);
+	}
+
+	else if (status == 0)
+	{
+		printf("Channel %d not subscribed\n", channel_input);
+	}
+
+	else if (status == 2)
+	{
+		printf("Invalid channel:%d\n", channel_input);
+	}
+	else
+	{
+	}
 }
 
-else if (status == 0){
-	printf("Channel %d not subscribed\n", channel_input);
-}
-
-else if (status == 2){
-	printf("Invalid channel:%d\n", channel_input);
-}
-else{
-
-}
-
-	
-	
-}
-
+// Next function without channel arguement
 void NextLive(int sockfd)
 {
 
 	int32_t tmp;
 	char message[MAX];
-	int count=0;
-	int channel_input=0;
-	
+	int count = 0;
+	int channel_input = 0;
+
 	bzero(&tmp, sizeof(tmp));
 	read(sockfd, &tmp, sizeof(tmp));
 	count = (int)tmp;
 
-// To read all message passed by server
-	for (int n=0; n<count; n++){
+	// To read all message passed by server
+	for (int n = 0; n < count; n++)
+	{
 		read(sockfd, &tmp, sizeof(tmp));
 		channel_input = (int)tmp;
 		read(sockfd, message, sizeof(message));
 		printf("%d:%s\n", channel_input, message);
 	}
-
-
 }
 
-
-void channel(int sockfd){
+// Channel function
+void channel(int sockfd)
+{
 
 	int32_t tmp;
-	
-	int count = 0;
-	int total=0;
-	int read_msge=0;
-	int unread_msge=0;
-	int channel=0;
 
+	int count = 0;
+	int total = 0;
+	int read_msge = 0;
+	int unread_msge = 0;
+	int channel = 0;
 
 	bzero(&tmp, sizeof(tmp));
 	read(sockfd, &tmp, sizeof(tmp));
 
+	//Reads the total channel count passed from server
 	count = (int)tmp;
 
-	for (int n=0; n<count; n++){
+	//Loop through and print all the contents
+	for (int n = 0; n < count; n++)
+	{
 
 		read(sockfd, &tmp, sizeof(tmp));
 		channel = (int)tmp;
@@ -420,15 +430,11 @@ void channel(int sockfd){
 		unread_msge = (int)tmp;
 		printf("Unread messages:%d\n", unread_msge);
 
-
 		read(sockfd, &tmp, sizeof(tmp));
 		read_msge = (int)tmp;
 		printf("Read messages:%d\n", read_msge);
 	}
-
-	
 }
-
 
 int main(int argc, char *argv[])
 {
