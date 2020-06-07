@@ -6,8 +6,8 @@ To compile the program (make sure the make file, client.c and server.c file are 
 2. Run “make” command to compile the files. This make file compiles server.c and client.c. 
 
 Starting the server and client:
-To run the server, type in the command “./Server <port number>”. 
-To run the client, type in the command “./Client <server_ip_address> <port_number>”.
+- To run the server, type in the command “./Server <port number>”. 
+- To run the client, type in the command “./Client <server_ip_address> <port_number>”.
   
 Functions
 1. SUB<Channelid>
